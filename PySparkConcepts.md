@@ -89,7 +89,7 @@ from pyspark.sql.functions import *
 
 * **spark datasets**
 	* introduced in 1.6
-	* TypeSafety - compile tyme typesafety
+	* TypeSafety - compile time typesafety
 	* Direct operation over user defined classes
 	* RDD functional nature and Dataframe's optimizations
 	* Datasets are more memory optimized
@@ -129,6 +129,7 @@ from pyspark.sql.functions import *
 * **cache vs persist in spark**
 	* while using cache spark will store data in RAM as a deserialized java object and portion of data will be lost is memory is less than the size of rdd.
 	* persistance is methodology to store data for an rdd based on userinput and we can also write data to disk incase ample memory is not available . 
+	* DataFrame.persist(storageLevel: pyspark.storagelevel.StorageLevel = StorageLevel(True, True, False, True, 1)) 
 
 
 * **Difference between spark and yarn fault tolerances** 
@@ -180,7 +181,7 @@ from pyspark.sql.functions import *
 * **Accumulator in spark**
 	*  used to aggregate the information of particular collection
 	*  normally used for stats about the job
-	*  executor writed accumulator values and are not supposed read same whereas it is a responsibility of driver
+	*  executor writes accumulator values and are not supposed read same whereas it is a responsibility of driver
 
 * **Broadcast variable in spark**
 	* read only variables
@@ -196,7 +197,7 @@ from pyspark.sql.functions import *
 	* it utilizes matrix structure operations instead of row by row 
 
 * **spark UDF**
-	* ad a non existing functionality
+	* add a non existing functionality
 	* it is a very costly operation as udf are not optimised by spark 
 		* `there are 22 udf classes in java and 1,2,3 represent how many inputs we can make`-review
 * .queryExecution.executedPlan helps you see what logical plan was followed for resultant rdd
@@ -267,6 +268,20 @@ from pyspark.sql.functions import *
     2. merge by row by row comparison
     3. aggregate the result as we merge 
 
+* inner join
+	* joins two datasets on key columns, where keys don’t match the rows get dropped from both datasets
+
+* **leftsemi** join is similar to inner join difference being leftsemi join returns all columns from the left dataset and ignores all columns from the right dataset. In other words, this join returns columns from the only left dataset for the records match in the right dataset on join expression, records not matched on join expression are ignored from both left and right datasets.
+
+* **leftanti** join does the exact opposite of the leftsemi, leftanti join returns only columns from the left dataset for non-matched records.
+
+* empDF.alias("emp1").join(empDF.alias("emp2"), \
+    col("emp1.superior_emp_id") == col("emp2.emp_id"),"inner") \
+    .select(col("emp1.emp_id"),col("emp1.name"), \
+      col("emp2.emp_id").alias("superior_emp_id"), \
+      col("emp2.name").alias("superior_emp_name")) \
+   .show(truncate=False)
+
 
 
 ### Spark memory management
@@ -306,14 +321,44 @@ from pyspark.sql.functions import *
 ### Possible causes of out of memory
 
 
+### Spark Persistance storage levels
+All different storage level Spark supports are available at org.apache.spark.storage.StorageLevel class. The storage level specifies how and where to persist or cache a Spark DataFrame and Dataset.
+
+**MEMORY_ONLY** – This is the **default behavior of the RDD cache()** method and stores the RDD or DataFrame as **deserialized objects to JVM memory**. When there is no enough memory available it will not save DataFrame of some partitions and these will be re-computed as and when required. This takes more memory. but unlike RDD, this would be slower than MEMORY_AND_DISK level as it recomputes the unsaved partitions and recomputing the in-memory columnar representation of the underlying table is expensive
+
+**MEMORY_ONLY_SER** – This is the same as **MEMORY_ONLY but the difference being it stores RDD as serialized objects to** JVM memory. It takes lesser memory (space-efficient) then MEMORY_ONLY as it saves objects as serialized and takes an additional few more CPU cycles in order to deserialize.
+
+**MEMORY_ONLY_2** – Same as MEMORY_ONLY storage level but replicate each partition to two cluster nodes.
+
+**MEMORY_ONLY_SER_2** – Same as MEMORY_ONLY_SER storage level but replicate each partition to two cluster nodes.
+
+**MEMORY_AND_DISK** – **This is the default behavior of the DataFrame or Dataset**. In this Storage Level, The DataFrame will be stored in JVM memory as a deserialized object. When required storage is greater than available memory, it stores some of the excess partitions into the disk and reads the data from the disk when required. It is slower as there is I/O involved.
+
+**MEMORY_AND_DISK_SER** – This is the same as MEMORY_AND_DISK storage level difference being it serializes the DataFrame objects in memory and on disk when space is not available.
+
+**MEMORY_AND_DISK_2** – Same as MEMORY_AND_DISK storage level but replicate each partition to two cluster nodes.
+
+**MEMORY_AND_DISK_SER_2** – Same as MEMORY_AND_DISK_SER storage level but replicate each partition to two cluster nodes.
+
+**DISK_ONLY** – In this storage level, **DataFrame is stored only on disk and the CPU computation time is high as I/O is involved.**
+
+**DISK_ONLY_2** – Same as DISK_ONLY storage level but replicate each partition to two cluster nodes.
+
+* class pyspark.StorageLevel(useDisk, useMemory, useOffHeap, deserialized, replication = 1)
+
 
 ### Notes
 
-*sparkContext* is a Scala implementation entry point and JavaSparkContext is a java wrapper of sparkContext.
+* *sparkContext* is a Scala implementation entry point and JavaSparkContext is a java wrapper of sparkContext.
 
-*SQLContext* is entry point of SparkSQL which can be received from sparkContext.
+* *SQLContext* is entry point of SparkSQL which can be received from sparkContext.
 > Prior to 2.x.x, RDD ,DataFrame and Data-set were three different data abstractions.Since Spark 2.x.x, 
 > All three data abstractions are unified and SparkSession is the unified entry point of Spark.
+
+* spark.sparkContext.getConf().getAll()
+* dataFrame = dataFrame.select([F.col(c).cast("string") for c in dataFrame.columns])
+* PySpark default defines shuffling partition to 200 using spark.sql.shuffle.partitions configuration.
+* pyspark.sql.functions.window(timeColumn, windowDuration, slideDuration=None, startTime=None)
 
 Important functions and keywords
 * 	col 
@@ -336,7 +381,6 @@ cast
 timestamp handling 
 
 1  - sql window function 
-2  - employee manager 
 3  - second highest salary of employees ?? rank 
 4  - second highest salary of employees of different organisation ?? rank patitioning/bucketting
 5  - transpose ? 
